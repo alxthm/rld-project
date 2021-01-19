@@ -1,3 +1,4 @@
+
 import random
 
 
@@ -13,42 +14,30 @@ def recall(age, hist):
         else:
             for length in range(length + 1, len(hist) - past):
                 if hist[-past - length - 1] != hist[-length - 1]: break
-            else:
-                length += 1
+            else: length += 1
             end = len(hist) - past
     return end
 
-
 def beat(i):
     return (i + 1) % 3
-
-
 def loseto(i):
     return (i - 1) % 3
-
 
 class Stats:
     """Maintains three running counts and returns the highest count based
          on any given time horizon and threshold."""
-
     def __init__(self):
         self.sum = [[0, 0, 0]]
-
     def add(self, move, score):
         self.sum[-1][move] += score
-
     def advance(self):
         self.sum.append(self.sum[-1])
-
     def max(self, age, default, score):
-        if age >= len(self.sum):
-            diff = self.sum[-1]
-        else:
-            diff = [self.sum[-1][i] - self.sum[-1 - age][i] for i in range(3)]
+        if age >= len(self.sum): diff = self.sum[-1]
+        else: diff = [self.sum[-1][i] - self.sum[-1 - age][i] for i in range(3)]
         m = max(diff)
         if m > score: return diff.index(m), m
         return default, score
-
 
 class Predictor:
     """The basic iocaine second- and triple-guesser.    Maintains stats on the
@@ -56,11 +45,9 @@ class Predictor:
          and returns the prediction of that strategy (or the second- or triple-
          guess) if past stats are deviating from zero farther than the supplied
          "best" guess so far."""
-
     def __init__(self):
         self.stats = Stats()
         self.lastguess = -1
-
     def addguess(self, lastmove, guess):
         if lastmove != -1:
             diff = (lastmove - self.prediction) % 3
@@ -68,14 +55,11 @@ class Predictor:
             self.stats.add(loseto(diff), -1)
             self.stats.advance()
         self.prediction = guess
-
     def bestguess(self, age, best):
         bestdiff = self.stats.max(age, (best[0] - self.prediction) % 3, best[1])
         return (bestdiff[0] + self.prediction) % 3, bestdiff[1]
 
-
 ages = [1000, 100, 10, 5, 2, 1]
-
 
 class Iocaine:
 
@@ -129,10 +113,8 @@ class Iocaine:
                 # the future: by mimicing what their move was; or mimicing what my
                 # move was.    If there were no similar moments, just move randomly.
                 for watch, when in enumerate(best):
-                    if not when:
-                        move = rand
-                    else:
-                        move = self.histories[mimic][when]
+                    if not when: move = rand
+                    else: move = self.histories[mimic][when]
                     self.predict_history[a][mimic][watch].addguess(them, move)
                 # Also we can anticipate the future by expecting it to be the same
                 # as the most frequent past (either counting their moves or my moves).
@@ -151,20 +133,18 @@ class Iocaine:
             self.predict_meta[meta].addguess(them, best[0])
 
         # Finally choose the best meta prediction from the final six, scoring
-        # these against each other on the whole-game timeframe.
+        # these against each other on the whole-game timeframe. 
         best = (-1, -1)
         for meta in range(len(ages)):
-            best = self.predict_meta[meta].bestguess(len(self.histories[0]), best)
+            best = self.predict_meta[meta].bestguess(len(self.histories[0]) , best) 
 
-            # We've picked a next move.    Record our move in histories[0] for next time.
+        # We've picked a next move.    Record our move in histories[0] for next time.
         self.histories[0].append(best[0])
 
         # And return it.
         return best[0]
 
-
 iocaine = None
-
 
 def iocaine_agent(observation, configuration):
     global iocaine
@@ -173,5 +153,5 @@ def iocaine_agent(observation, configuration):
         act = iocaine.move(-1)
     else:
         act = iocaine.move(observation.lastOpponentAction)
-
+        
     return act

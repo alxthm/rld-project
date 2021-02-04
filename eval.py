@@ -8,9 +8,7 @@ import multiprocessing as pymp
 from tqdm import tqdm
 
 
-
-# function to return score
-def get_result(agent, baseline, num_episodes):
+def get_result(agent: str, baseline: str, num_episodes: int):
     start = datetime.now()
     outcomes = kaggle_environments.evaluate('rps', [agent, baseline], num_episodes=num_episodes)
     won, lost, tie, cum_score = 0, 0, 0, 0.
@@ -27,7 +25,18 @@ def get_result(agent, baseline, num_episodes):
     return baseline, won, lost, tie, elapsed, cum_score
 
 
-def eval_agent_against_baselines(agent: Callable, baselines: List[Callable], num_episodes=10) -> pd.DataFrame:
+def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=10) -> pd.DataFrame:
+    """
+
+    Args:
+        agent: path of the agent python file
+        baselines: list of paths
+        num_episodes: number of episodes to run (each episodes consisting of 1000 matches, with a winner and a loser
+            at the end)
+
+    Returns:
+
+    """
     df = pd.DataFrame(
         columns=['wins', 'loses', 'ties', 'total time', 'avg. score'],
         index=baselines

@@ -7,11 +7,11 @@ import torch.nn.functional as F
 action_history = []
 opponent_history = []
 reward_state = 0
-reward_history = np.zeros(3)
+reward_history = []
 context_history = []
-context_size = 4
-A_list = [np.eye(context_size*3) for _ in range(2)]
-b_list = [np.zeros(context_size*3) for _ in range(2)]
+context_size = 8
+A_list = [np.eye(context_size*3) for _ in range(3)]
+b_list = [np.zeros(context_size*3) for _ in range(3)]
 alpha = 0.15
 probas = [0, 0, 0]
 
@@ -36,8 +36,7 @@ def actions_bandit(observation, configuration):
 
     if observation.step > 0:
         opponent_history.append(observation.lastOpponentAction)
-
-        reward_history[action_history[-1]] = observation.reward - reward_state  # register the reward of the last action
+        reward_history.append(observation.reward - reward_state)  # register the reward of the last action
         reward_state = observation.reward  # update reward status
 
     if observation.step >= context_size:
@@ -49,17 +48,20 @@ def actions_bandit(observation, configuration):
         # LinUCB estimation
         x_t = get_context(action_history, opponent_history, context_size)
 
-        for i in range(2):
+        for i in range(3):
             A = A_list[i]
             b = b_list[i]
             A_inv = np.linalg.inv(A)
             theta = A_inv.dot(b)
             probas[i] = theta.dot(x_t) + alpha * np.sqrt(x_t.dot(A_inv).dot(x_t))
 
+        # print(f'theta : {theta}')
+        # print(f'second term : {np.sqrt(x_t.dot(A_inv).dot(x_t))}')
+        print(probas)
         choice = int(np.argmax(probas))
-
+        context_history.append(x_t)
     else:
         choice = random.randint(0, 2)
     action_history.append(choice)  # register action
-
+    # print(reward_history)
     return choice

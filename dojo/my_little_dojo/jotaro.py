@@ -11,7 +11,7 @@ reward_history = []
 context_history = []
 context_size = 8
 A_list = [np.eye(context_size*3) for _ in range(3)]
-b_list = [np.zeros(context_size*3) for _ in range(3)]
+b_list = [np.zeros((context_size*3, 1)) for _ in range(3)]
 alpha = 0.15
 probas = [0, 0, 0]
 
@@ -22,7 +22,8 @@ def get_context(actions_self, opponent_actions, ctx_size):
         context.append(opponent_actions[len(opponent_actions) - i - 1])
         context.append(actions_self[len(actions_self) - i - 1])
     context = F.one_hot(torch.tensor(context), num_classes=3)
-    return context.numpy().flatten()
+    context = context.numpy().flatten().reshape(context_size*3, 1)  # make it a vector
+    return context
 
 
 def actions_bandit(observation, configuration):
@@ -42,8 +43,10 @@ def actions_bandit(observation, configuration):
     if observation.step >= context_size:
         # update A and b for LinUCB
         if len(context_history) > 0:
-            A_list[action_history[-1]] += context_history[-1].dot(context_history[-1])
-            b_list[action_history[-1]] += reward_history[-1] * context_history[-1]
+            x_t = context_history[-1]
+            last_action = action_history[-1]
+            A_list[last_action] += x_t @ x_t.T
+            b_list[last_action] += reward_history[-1] * x_t
 
         # LinUCB estimation
         x_t = get_context(action_history, opponent_history, context_size)
@@ -52,11 +55,10 @@ def actions_bandit(observation, configuration):
             A = A_list[i]
             b = b_list[i]
             A_inv = np.linalg.inv(A)
-            theta = A_inv.dot(b)
-            probas[i] = theta.dot(x_t) + alpha * np.sqrt(x_t.dot(A_inv).dot(x_t))
+            theta = A_inv @ b
+            proba_i = theta.T @ x_t + alpha * np.sqrt(x_t.T @ A_inv @ x_t)
+            probas[i] = proba_i[0][0]
 
-        # print(f'theta : {theta}')
-        # print(f'second term : {np.sqrt(x_t.dot(A_inv).dot(x_t))}')
         print(probas)
         choice = int(np.argmax(probas))
         context_history.append(x_t)

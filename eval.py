@@ -61,18 +61,23 @@ def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=
         df.loc[baseline_agent, 'total time'] = elapsed
         df.loc[baseline_agent, 'avg. score'] = avg_score
 
-    agent_name = agent.split('/')[-1].split('.')[0]
-    df.to_csv(project_dir / f'runs/csv_results/{agent_name}-{datetime.now().strftime(f"%Y%m%d-%H%M%S")}.csv')
     return df
 
 
 def main():
-    # my_agent = 'dojo/black_belt/greenberg.py'
-    my_agent = 'dojo/my_little_dojo/saitama_tabular.py'
+    agent_name = 'saitama_tabular'
     opponent_dojo = 'white'
+
+    # my_agent = 'dojo/black_belt/greenberg.py'
+    my_agent = f'dojo/my_little_dojo/{agent_name}.py'
     opponents = [os.path.join(f'dojo/{opponent_dojo}_belt', agent) for agent in
                  os.listdir(f'dojo/{opponent_dojo}_belt')]
-    print(eval_agent_against_baselines(my_agent, opponents))
+    df = eval_agent_against_baselines(my_agent, opponents)
+
+    # save results
+    time_stamp = datetime.now().strftime(f'%Y%m%d-%H%M%S')
+    df.to_csv(project_dir / f'runs/csv_results/{agent_name}-{opponent_dojo}-{time_stamp}.csv')
+
 
 
 if __name__ == '__main__':

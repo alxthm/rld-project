@@ -1,13 +1,12 @@
-import glob
 import multiprocessing as pymp
 import os
-import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
 
 import kaggle_environments
 import pandas as pd
+import seaborn as sns
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
@@ -102,6 +101,16 @@ def save_conf(log_dir, agent_name: str):
         OmegaConf.save(conf, f)
 
 
+def plot_figures(df_results, df_all, log_dir):
+    df_results = df_results.reset_index().rename(columns={'index': 'opponent'}).melt(id_vars=['opponent', 'total time'])
+    df_results.value = df_results.value.astype(int)
+    fig1 = sns.relplot(x='variable', y='value', hue='opponent', kind='line',
+                       data=df_results[df_results.variable != 'avg. score'])
+    fig2 = sns.relplot(x='t', y='rewards', col='opponent', hue='opponent', col_wrap=4, kind='line', data=df_all)
+    fig1.savefig(log_dir / 'results.png')
+    fig2.savefig(log_dir / 'full_history.png')
+
+
 def main():
     agent_name = 'saitama'
     opponent_dojo = 'blue'
@@ -119,8 +128,9 @@ def main():
     print(df)
 
     # save eval results
-    df.to_csv(log_dir / 'results.csv', index=False)
+    df.reset_index().to_csv(log_dir / 'results.csv', index=False)
     df_all.to_csv(log_dir / 'full_history.csv', index=False)
+    plot_figures(df, df_all, log_dir)
 
 
 if __name__ == '__main__':

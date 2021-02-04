@@ -1,5 +1,5 @@
 import os
-from typing import List, Callable
+from typing import List, Callable, Tuple
 
 import pandas as pd
 import kaggle_environments
@@ -8,8 +8,9 @@ import multiprocessing as pymp
 from tqdm import tqdm
 
 
-def get_result(agent: str, baseline: str, num_episodes: int):
+def get_result(match_setting: Tuple[str, str, int]):
     start = datetime.now()
+    agent, baseline, num_episodes = match_setting
     outcomes = kaggle_environments.evaluate('rps', [agent, baseline], num_episodes=num_episodes)
     won, lost, tie, cum_score = 0, 0, 0, 0.
     for outcome in outcomes:
@@ -61,7 +62,7 @@ def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=
 
 
 def main():
-    my_agent = 'dojo/black_belt/centrifugal_bumblepuppy_v4.py'
+    my_agent = 'dojo/my_little_dojo/saitama-tabular.py'
     white_belt_agents = [os.path.join('dojo/white_belt', agent) for agent in os.listdir('dojo/white_belt')]
     print(eval_agent_against_baselines(my_agent, white_belt_agents))
 

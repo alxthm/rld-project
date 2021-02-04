@@ -1,11 +1,14 @@
-import os
-from typing import List, Callable, Tuple
-
-import pandas as pd
-import kaggle_environments
-from datetime import datetime
 import multiprocessing as pymp
+import os
+from datetime import datetime
+from pathlib import Path
+from typing import List, Tuple
+
+import kaggle_environments
+import pandas as pd
 from tqdm import tqdm
+
+project_dir = Path(__file__).resolve().parents[0]
 
 
 def get_result(match_setting: Tuple[str, str, int]):
@@ -58,13 +61,18 @@ def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=
         df.loc[baseline_agent, 'total time'] = elapsed
         df.loc[baseline_agent, 'avg. score'] = avg_score
 
+    agent_name = agent.split('/')[-1].split('.')[0]
+    df.to_csv(project_dir / f'runs/csv_results/{agent_name}-{datetime.now().strftime(f"%Y%m%d-%H%M%S")}.csv')
     return df
 
 
 def main():
-    my_agent = 'dojo/my_little_dojo/saitama-tabular.py'
-    white_belt_agents = [os.path.join('dojo/white_belt', agent) for agent in os.listdir('dojo/white_belt')]
-    print(eval_agent_against_baselines(my_agent, white_belt_agents))
+    # my_agent = 'dojo/black_belt/greenberg.py'
+    my_agent = 'dojo/my_little_dojo/saitama_tabular.py'
+    opponent_dojo = 'white'
+    opponents = [os.path.join(f'dojo/{opponent_dojo}_belt', agent) for agent in
+                 os.listdir(f'dojo/{opponent_dojo}_belt')]
+    print(eval_agent_against_baselines(my_agent, opponents))
 
 
 if __name__ == '__main__':

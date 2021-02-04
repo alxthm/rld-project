@@ -1,4 +1,35 @@
+from types import SimpleNamespace
+from typing import Callable
+
 from kaggle_environments import make
+from kaggle_environments.envs.rps.utils import get_score
+
+from dojo.my_little_dojo import saitama_tabular
+from dojo.white_belt import statistical, counter_reactionary
+
+
+def test_env(agent_left: Callable, agent_right: Callable, steps: int, verbose: bool):
+    configuration = SimpleNamespace(**{'episodeSteps': 10, 'actTimeout': 1, 'runTimeout': 1200, 'signs': 3,
+                                       'tieRewardThreshold': 20, 'agentTimeout': 60})
+
+    obs_left = SimpleNamespace(**{'remainingOverageTime': 60, 'step': 0, 'reward': 0})
+    obs_right = SimpleNamespace(**{'remainingOverageTime': 60, 'step': 0, 'reward': 0})
+    reward_left = 0
+    reward_right = 0
+    for step in range(steps):
+        if step > 0:
+            obs_left = SimpleNamespace(**{'remainingOverageTime': 60, 'step': step, 'reward': reward_left,
+                                          'lastOpponentAction': action_right})
+            obs_right = SimpleNamespace(**{'remainingOverageTime': 60, 'step': step, 'reward': reward_right,
+                                           'lastOpponentAction': action_left})
+        action_left = agent_left(obs_left, configuration)
+        action_right = agent_right(obs_right, configuration)
+        score = get_score(action_left, action_right)
+        reward_left += score
+        reward_right -= score
+        if verbose:
+            print(f'step {step} - {action_left} vs {action_right} : score {score}')
+    print(f'Final score: {reward_left} - {reward_right}')
 
 
 def evaluate_with_debug(agent, configuration={}, steps=[], debug=False, num_episodes=1):
@@ -17,7 +48,11 @@ def single_run(agent, config):
 
 
 if __name__ == '__main__':
+    # --- Single or multiple runs with kaggle env
     config = {'episodeSteps': 10}
     my_agent = 'dojo/my_little_dojo/saitama_tabular.py'
-    single_run(my_agent, config)
+    # single_run(my_agent, config)
     # evaluate_with_debug(my_agent, config, debug=True, num_episodes=2)
+
+    # --- Test and debug with test environment
+    test_env(saitama_tabular.agent, counter_reactionary.counter_reactionary, steps=10, verbose=True)

@@ -31,7 +31,7 @@ class Jotaro:
         if observation.step > 0:
             self.opponent_history.append(observation.lastOpponentAction)
             self.reward_history.append(observation.reward - self.reward_state)  # register the reward of the last action
-            reward_state = observation.reward  # update reward status
+            self.reward_state = observation.reward  # update reward status
 
         if observation.step >= self.context_size:
             # update A and b for LinUCB

@@ -7,6 +7,7 @@ from kaggle_environments.envs.rps.utils import get_score
 from dojo.white_belt import statistical, counter_reactionary
 from dojo.my_little_dojo import jotaro, giorno
 
+
 def test_env(agent_left: Callable, agent_right: Callable, steps: int, verbose: bool):
     configuration = SimpleNamespace(**{'episodeSteps': 10, 'actTimeout': 1, 'runTimeout': 1200, 'signs': 3,
                                        'tieRewardThreshold': 20, 'agentTimeout': 60})

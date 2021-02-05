@@ -1,7 +1,13 @@
 import random
+import os
+from pathlib import Path
+import pandas as pd
 import numpy as np
 import torch
 import torch.nn.functional as F
+from omegaconf import OmegaConf
+
+project_dir = Path().resolve()  # for the kaggle-environment config
 
 
 class Jotaro:
@@ -74,6 +80,18 @@ reward_state = 0
 reward_agents_history = [1, 1, 1, 1, 1]  # starts at a reward of 1 to prevent division by 0
 agents_choice_history = []
 reward_history = []
+conf = OmegaConf.load(project_dir / 'dojo/my_little_dojo/giorno.yaml')
+
+
+def save_frequencies_agents_chosen(chosen_agents_history, agents_):
+    agents_names, _ = zip(*agents_)
+    one_hot = F.one_hot(torch.tensor(chosen_agents_history), num_classes=len(agents_))
+    freq_df = pd.DataFrame(one_hot.numpy(), columns=agents_names)
+    freq_df = freq_df.cumsum(axis=0)
+
+    # create a dir to make it clean
+    os.makedirs(project_dir / 'runs/tmp/', exist_ok=True)
+    freq_df.to_csv(project_dir / 'runs/tmp/giorno_freq_df.csv')
 
 
 def banditception(observation, action):
@@ -83,6 +101,9 @@ def banditception(observation, action):
     global reward_state
     global reward_history
     global agents_choice_history
+    global conf
+
+    ub_estimate = [random.random() for _ in range(len(agents))]  # catch the exception on the case of step == 0.
 
     if observation.step > 0:
         # update of the rewards
@@ -90,11 +111,11 @@ def banditception(observation, action):
         reward_state = observation.reward  # update reward status
         reward_agents_history[agents_choice_history[-1]] += reward_history[-1]  # update the rewards of the agents
 
-    # action of the meta-bandit
-    ub_estimate = [
-        1 / agent_choices_freq[i] * reward_agents_history[i] + np.sqrt(
-            2 * np.log(observation.step) / agent_choices_freq[i])
-        for i in range(len(agents))]
+        # action of the meta-bandit
+        ub_estimate = [
+            1 / agent_choices_freq[i] * reward_agents_history[i] + np.sqrt(
+                2 * np.log(observation.step) / agent_choices_freq[i])
+            for i in range(len(agents))]
 
     agent_chosen = int(np.argmax(ub_estimate))
     agent_choices_freq[agent_chosen] += 1
@@ -106,5 +127,8 @@ def banditception(observation, action):
 
     for agent in agents_objects:
         agents_actions.append(agent.act(observation, action))
+
+    if observation.step == conf.nb_steps - 1:
+        save_frequencies_agents_chosen(agents_choice_history, agents)
 
     return agents_actions[agent_chosen]

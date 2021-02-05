@@ -105,7 +105,7 @@ def save_conf(log_dir, agent_name: str):
         OmegaConf.save(conf, f)
 
 
-def plot_figures(df_results, df_all, log_dir):
+def plot_figures(df_results, df_all, log_dir, agent_name=None):
     df_results = df_results.reset_index().rename(columns={'index': 'opponent'}).melt(id_vars=['opponent', 'total time'])
     df_results.value = df_results.value.astype(int)
     fig1 = sns.catplot(
@@ -114,6 +114,18 @@ def plot_figures(df_results, df_all, log_dir):
         ci="sd", palette="dark", alpha=.6, height=6
     )
     fig2 = sns.relplot(x='t', y='rewards', col='opponent', hue='opponent', col_wrap=4, kind='line', data=df_all)
+
+    if agent_name == 'giorno':
+        tmp_log_path = log_dir.parent.parent / 'tmp'
+        freq_df = pd.read_csv(tmp_log_path / 'giorno_freq_df.csv', index_col=0)
+        freq_df.to_csv(log_dir / 'giorno_freq_df.csv')
+
+        freq_df = freq_df.reset_index().rename(columns={'index': 'timestep'})
+        freq_df = freq_df.melt(id_vars=["timestep"])
+        fig3 = sns.relplot(x='timestep', y='value', col='variable', hue='variable', col_wrap=4, kind='line',
+                           data=freq_df)
+        fig3.savefig(log_dir / 'agents_chosen_frequency.png')
+
     fig1.savefig(log_dir / 'results.png')
     fig2.savefig(log_dir / 'full_history.png')
 
@@ -138,13 +150,13 @@ def main():
     except ValueError:
         print("no '__pycache__' found in opponents")
 
-    df, df_all = eval_agent_against_baselines(my_agent, opponents, num_episodes=10)
+    df, df_all = eval_agent_against_baselines(my_agent, opponents, num_episodes=1)
     print(df)
 
     # save eval results
     df.reset_index().to_csv(log_dir / 'results.csv', index=False)
     df_all.to_csv(log_dir / 'full_history.csv', index=False)
-    plot_figures(df, df_all, log_dir)
+    plot_figures(df, df_all, log_dir, agent_name=agent_name)
 
 
 if __name__ == '__main__':

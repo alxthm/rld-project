@@ -12,14 +12,13 @@ nice article to read https://arxiv.org/pdf/1512.07679.pdf
 
 - Find fancy names :dancer:
 
-- Banditception​ :x:
+- Banditception​ :heavy_check_mark:
 
-- Base Bandits : Contextual Bandits (Scélérat) :x:
+- Base Bandits : Contextual Bandits (Scélérat) :heavy_check_mark:
 
-  - Lin-UCB :x:
-  - Thompson Sampling :x:
-
-- Tabular-Q :x:
+  - Lin-UCB :heavy_check_mark:
+  
+- Tabular-Q :heavy_check_mark:
 
 - SARSA :x:
 

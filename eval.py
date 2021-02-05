@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import List, Tuple
-
+import re
 import kaggle_environments
 import pandas as pd
 import seaborn as sns
@@ -48,7 +48,8 @@ def get_result(match_setting: Tuple[str, str, int]):
         else:
             tie += 1
         cum_score += score
-        baseline_name = baseline.split('/')[-1].split('.py')[0]
+        # baseline_name = baseline.split('/')[-1].split('.py')[0]
+        baseline_name = re.search(r"(?<=\\).+(?=\.)", baseline).group(0)
         df_stats.append(pd.DataFrame({
             'ep': i, 't': [t * 10 for t in range(len(r[i]))], 'rewards': r[i], 'actions_left': a_left[i],
             'actions_right': a_right[i], 'opponent': baseline_name
@@ -69,9 +70,11 @@ def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=
     Returns:
 
     """
+    baselines_names = [re.search(r"(?<=\\).+(?=\.)", baseline).group(0) for baseline in baselines]
+    # baselines_names = [baseline.split('/')[-1].split('.py')[0] for baseline in baselines]
     df = pd.DataFrame(
-        columns=['wins', 'loses', 'ties', 'total time', 'avg. score'],
-        index=baselines
+        columns=['wins', 'ties', 'loses', 'total time', 'avg. score'],
+        index=baselines_names
     )
 
     pool = pymp.Pool()
@@ -84,11 +87,12 @@ def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=
 
     df_all = []
     for baseline_agent, won, lost, tie, elapsed, avg_score, df_stats in results:
-        df.loc[baseline_agent, 'wins'] = won
-        df.loc[baseline_agent, 'loses'] = lost
-        df.loc[baseline_agent, 'ties'] = tie
-        df.loc[baseline_agent, 'total time'] = elapsed
-        df.loc[baseline_agent, 'avg. score'] = avg_score
+        baseline_name = re.search(r"(?<=\\).+(?=\.)", baseline_agent).group(0)
+        df.loc[baseline_name, 'wins'] = won
+        df.loc[baseline_name, 'ties'] = tie
+        df.loc[baseline_name, 'loses'] = lost
+        df.loc[baseline_name, 'total time'] = elapsed
+        df.loc[baseline_name, 'avg. score'] = avg_score
         df_all += df_stats
 
     return df, pd.concat(df_all)
@@ -104,15 +108,18 @@ def save_conf(log_dir, agent_name: str):
 def plot_figures(df_results, df_all, log_dir):
     df_results = df_results.reset_index().rename(columns={'index': 'opponent'}).melt(id_vars=['opponent', 'total time'])
     df_results.value = df_results.value.astype(int)
-    fig1 = sns.relplot(x='variable', y='value', hue='opponent', kind='line',
-                       data=df_results[df_results.variable != 'avg. score'])
+    fig1 = sns.catplot(
+        data=df_results[df_results.variable != 'avg. score'], kind="bar",
+        x="variable", y="value", hue="opponent",
+        ci="sd", palette="dark", alpha=.6, height=6
+    )
     fig2 = sns.relplot(x='t', y='rewards', col='opponent', hue='opponent', col_wrap=4, kind='line', data=df_all)
     fig1.savefig(log_dir / 'results.png')
     fig2.savefig(log_dir / 'full_history.png')
 
 
 def main():
-    agent_name = 'saitama'
+    agent_name = 'giorno'
     opponent_dojo = 'blue'
 
     # save conf and code
@@ -124,7 +131,14 @@ def main():
     my_agent = f'dojo/my_little_dojo/{agent_name}.py'
     opponents = [os.path.join(f'dojo/{opponent_dojo}_belt', agent) for agent in
                  os.listdir(f'dojo/{opponent_dojo}_belt')]
-    df, df_all = eval_agent_against_baselines(my_agent, opponents)
+
+    # remnant file in opponents to pop
+    try:
+        opponents.remove('dojo/white_belt\\__pycache__')
+    except ValueError:
+        print("no '__pycache__' found in opponents")
+
+    df, df_all = eval_agent_against_baselines(my_agent, opponents, num_episodes=10)
     print(df)
 
     # save eval results

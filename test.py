@@ -4,9 +4,8 @@ from typing import Callable
 from kaggle_environments import make
 from kaggle_environments.envs.rps.utils import get_score
 
-from dojo.my_little_dojo import saitama_tabular
 from dojo.white_belt import statistical, counter_reactionary
-
+from dojo.my_little_dojo import jotaro, giorno
 
 def test_env(agent_left: Callable, agent_right: Callable, steps: int, verbose: bool):
     configuration = SimpleNamespace(**{'episodeSteps': 10, 'actTimeout': 1, 'runTimeout': 1200, 'signs': 3,
@@ -49,10 +48,10 @@ def single_run(agent, config):
 
 if __name__ == '__main__':
     # --- Single or multiple runs with kaggle env
-    config = {'episodeSteps': 10}
+    config = {'episodeSteps': 1000}
     my_agent = 'dojo/my_little_dojo/saitama_tabular.py'
     # single_run(my_agent, config)
     # evaluate_with_debug(my_agent, config, debug=True, num_episodes=2)
 
     # --- Test and debug with test environment
-    test_env(saitama_tabular.agent, counter_reactionary.counter_reactionary, steps=10, verbose=True)
+    test_env(giorno.banditception, counter_reactionary.counter_reactionary, steps=1000, verbose=True)

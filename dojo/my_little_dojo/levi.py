@@ -8,6 +8,7 @@ from torch.distributions import Categorical
 learning_rate = 0.001
 gamma = 0.98
 lmbda = 0.95
+entropy_weight = 0.1
 eps_clip = 0.1
 K_epoch = 2
 dim_act = 3
@@ -75,6 +76,7 @@ class PPO(nn.Module):
         kl_div_history = []
         loss_pi_history = []
         loss_v_history = []
+        entropy_history = []
         for i in range(K_epoch):
             # update target with new V at each PPO update, to mitigate stale targets/
             v_prime = self.v(s_prime, second_hidden).view(-1, 1)  # (T, 1)
@@ -102,7 +104,8 @@ class PPO(nn.Module):
             surr2 = torch.clamp(ratio, 1 - eps_clip, 1 + eps_clip) * advantage
             loss_pi = -torch.min(surr1, surr2)
             loss_v = F.smooth_l1_loss(v_s, td_target.detach())
-            loss = loss_pi + loss_v
+            entropy = Categorical(pi).entropy()
+            loss = loss_pi + loss_v - entropy_weight * entropy
 
             self.optimizer.zero_grad()
             loss.mean().backward(retain_graph=True)
@@ -113,9 +116,11 @@ class PPO(nn.Module):
                                            log_target=True, reduction='batchmean').item())
             loss_pi_history.append(loss_pi.mean().item())
             loss_v_history.append(loss_v.mean().item())
+            entropy_history.append(entropy.mean().item())
 
         logs = {'loss_pi': np.mean(loss_pi_history),
-                'loss_v': np.mean(loss_v_history)}
+                'loss_v': np.mean(loss_v_history),
+                'entropy': np.mean(entropy_history)}
         for k, kl_div in enumerate(kl_div_history):
             logs[f'kl_div_{k}'] = kl_div
         return logs

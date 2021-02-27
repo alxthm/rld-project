@@ -68,10 +68,10 @@ def train():
         # 'white_belt/all_rock': all_rock.constant_play_agent_0,
         # 'white_belt/all_scissors': all_scissors.constant_play_agent_2,
         # 'white_belt/mirror': mirror.mirror_opponent_agent,
-        # 'white_belt/reactionary': reactionary.reactionary,
+        'white_belt/reactionary': reactionary.reactionary,
         # 'blue_belt/transition_matrix': transition_matrix.transition_agent,
-        'blue_belt/not_so_markov': not_so_markov.markov_agent,
-        'blue_belt/decision_tree': decision_tree.agent,
+        # 'blue_belt/not_so_markov': not_so_markov.markov_agent,
+        # 'blue_belt/decision_tree': decision_tree.agent,
         # 'black_belt/multi_armed_bandit_v15': multi_armed_bandit_v15.multi_armed_bandit_agent,
         # 'black_belt/testing_please_ignore': testing_please_ignore.run,
     }
@@ -96,7 +96,6 @@ def train():
             while not done:
                 # gather a batch of T_horizon transitions in order to do a PPO update step
                 for t in range(T_horizon):
-                    global_step += 1
                     h_in = h_out
                     logits, h_out = model.pi(torch.from_numpy(s).float(), h_in)
                     logits = logits.view(-1)
@@ -112,8 +111,10 @@ def train():
                         break
 
                 logs = model.train_net()
-                for tag, value in logs.items():
-                    writer.add_scalar(f'{tag}_{opponent_name}', value, global_step)
+                global_step += 1
+                if global_step % 20 == 0:
+                    for tag, value in logs.items():
+                        writer.add_scalar(f'{tag}_{opponent_name}', value, global_step)
 
             # log to tensorboard
             writer.add_scalar(f'score_{opponent_name}', score, n_epi)

@@ -11,11 +11,12 @@ import torch
 from kaggle_environments.envs.rps.utils import get_score
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
 
 from dojo.my_little_dojo.levi import PPO
 
 T_horizon = 20
-n_runs = 10000  # how many matches to do against each agent for training
+n_runs = 3000  # how many matches to do against each agent for training
 
 
 class RockPaperScissorsEnv:
@@ -67,10 +68,10 @@ def train():
         # 'white_belt/all_rock': all_rock.constant_play_agent_0,
         # 'white_belt/all_scissors': all_scissors.constant_play_agent_2,
         # 'white_belt/mirror': mirror.mirror_opponent_agent,
-        'white_belt/reactionary': reactionary.reactionary,
+        # 'white_belt/reactionary': reactionary.reactionary,
         # 'blue_belt/transition_matrix': transition_matrix.transition_agent,
-        # 'blue_belt/not_so_markov': not_so_markov.markov_agent,
-        # 'blue_belt/decision_tree': decision_tree.agent,
+        'blue_belt/not_so_markov': not_so_markov.markov_agent,
+        'blue_belt/decision_tree': decision_tree.agent,
         # 'black_belt/multi_armed_bandit_v15': multi_armed_bandit_v15.multi_armed_bandit_agent,
         # 'black_belt/testing_please_ignore': testing_please_ignore.run,
     }
@@ -78,14 +79,15 @@ def train():
     # create tensorboard writer and save current file
     log_dir = project_dir / f'runs/levi/{datetime.now().strftime(f"%Y%m%d_%H%M%S")}'
     writer = SummaryWriter(log_dir)
+    shutil.copy2(project_dir / 'dojo/my_little_dojo/levi.py', log_dir)
     shutil.copy2(__file__, log_dir)
 
-    # create
     for opponent_name, opponent in opponents.items():
         print(f'Training against {opponent_name}')
         model = PPO()
         env = RockPaperScissorsEnv(opponent)
-        for n_epi in range(n_runs):
+        global_step = 0
+        for n_epi in tqdm(range(n_runs)):
             score = 0.
             h_out = (torch.zeros([1, 1, 32], dtype=torch.float), torch.zeros([1, 1, 32], dtype=torch.float))
             s = env.reset()
@@ -94,21 +96,24 @@ def train():
             while not done:
                 # gather a batch of T_horizon transitions in order to do a PPO update step
                 for t in range(T_horizon):
+                    global_step += 1
                     h_in = h_out
-                    prob, h_out = model.pi(torch.from_numpy(s).float(), h_in)
-                    prob = prob.view(-1)
-                    m = Categorical(prob)
+                    logits, h_out = model.pi(torch.from_numpy(s).float(), h_in)
+                    logits = logits.view(-1)
+                    m = Categorical(logits=logits)
                     a = m.sample().item()
                     s_prime, r, done = env.step(a)
 
-                    model.put_data((s, a, r, s_prime, prob[a].item(), h_in, h_out, done))
+                    model.put_data((s, a, r, s_prime, logits.detach().numpy(), h_in, h_out, done))
                     s = s_prime
 
                     score += r
                     if done:
                         break
 
-                model.train_net()
+                logs = model.train_net()
+                for tag, value in logs.items():
+                    writer.add_scalar(f'{tag}_{opponent_name}', value, global_step)
 
             # log to tensorboard
             writer.add_scalar(f'score_{opponent_name}', score, n_epi)

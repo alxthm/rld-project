@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -124,3 +126,33 @@ class PPO(nn.Module):
         for k, kl_div in enumerate(kl_div_history):
             logs[f'kl_div_{k}'] = kl_div
         return logs
+
+
+model_path = 'runs/levi/20210227_211653/model_white_belt/reactionary_100.pth'
+model = PPO()
+model.load_state_dict(torch.load(model_path))
+my_last_action = None
+last_h = None
+
+
+def act(observation, configuration):
+    global model
+    global my_last_action
+    global last_h
+
+    state = np.zeros(7)
+    if observation.step == 0:
+        last_h = (torch.zeros([1, 1, 32], dtype=torch.float), torch.zeros([1, 1, 32], dtype=torch.float))
+    else:
+        # one-hot encode my last action and opponent action as well as t
+        state = np.zeros(7)
+        state[my_last_action] = 1
+        state[observation.lastOpponentAction] = 1
+        state[-1] = observation.step
+
+    logits, last_h = model.pi(torch.from_numpy(state).float(), last_h)
+    logits = logits.view(-1)
+    m = Categorical(logits=logits)
+    a = m.sample().item()
+    my_last_action = a
+    return a

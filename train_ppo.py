@@ -16,7 +16,6 @@ from tqdm import tqdm
 from dojo.my_little_dojo.levi import PPO
 
 T_horizon = 20
-n_runs = 3000  # how many matches to do against each agent for training
 
 
 class RockPaperScissorsEnv:
@@ -56,19 +55,46 @@ class RockPaperScissorsEnv:
         return obs, score, done
 
 
-def train():
-    project_dir = Path(os.path.realpath(__file__)).parent
-    sys.path.append(str(project_dir))
-    from dojo.white_belt import all_paper, all_scissors, all_rock, reactionary, mirror, statistical
-    from dojo.blue_belt import decision_tree, transition_matrix, not_so_markov
-    from dojo.black_belt import testing_please_ignore, multi_armed_bandit_v15
+def train_one_ep_against(opponent_name: str, env, model, writer, current_global_step):
+    score = 0.
+    h_out = (torch.zeros([1, 1, 32], dtype=torch.float), torch.zeros([1, 1, 32], dtype=torch.float))
+    s = env.reset()
+    done = False
+    global_step = current_global_step
 
+    while not done:
+        # gather a batch of T_horizon transitions in order to do a PPO update step
+        for t in range(T_horizon):
+            h_in = h_out
+            logits, h_out = model.pi(torch.from_numpy(s).float(), h_in)
+            logits = logits.view(-1)
+            m = Categorical(logits=logits)
+            a = m.sample().item()
+            s_prime, r, done = env.step(a)
+
+            model.put_data((s, a, r, s_prime, logits.detach().numpy(), h_in, h_out, done))
+            s = s_prime
+
+            score += r
+            if done:
+                break
+
+        logs = model.train_net()
+        global_step += 1
+        if global_step % 20 == 0:
+            for tag, value in logs.items():
+                writer.add_scalar(f'{tag}_{opponent_name}', value, global_step)
+
+    return score, global_step
+
+
+def train(n_runs):
     opponents = {
         # 'white_belt/all_paper': all_paper.constant_play_agent_1,
         # 'white_belt/all_rock': all_rock.constant_play_agent_0,
         # 'white_belt/all_scissors': all_scissors.constant_play_agent_2,
         # 'white_belt/mirror': mirror.mirror_opponent_agent,
-        'white_belt/reactionary': reactionary.reactionary,
+        # 'white_belt/reactionary': reactionary.reactionary,
         # 'blue_belt/transition_matrix': transition_matrix.transition_agent,
         # 'blue_belt/not_so_markov': not_so_markov.markov_agent,
         # 'blue_belt/decision_tree': decision_tree.agent,
@@ -88,33 +114,7 @@ def train():
         env = RockPaperScissorsEnv(opponent)
         global_step = 0
         for n_epi in tqdm(range(n_runs)):
-            score = 0.
-            h_out = (torch.zeros([1, 1, 32], dtype=torch.float), torch.zeros([1, 1, 32], dtype=torch.float))
-            s = env.reset()
-            done = False
-
-            while not done:
-                # gather a batch of T_horizon transitions in order to do a PPO update step
-                for t in range(T_horizon):
-                    h_in = h_out
-                    logits, h_out = model.pi(torch.from_numpy(s).float(), h_in)
-                    logits = logits.view(-1)
-                    m = Categorical(logits=logits)
-                    a = m.sample().item()
-                    s_prime, r, done = env.step(a)
-
-                    model.put_data((s, a, r, s_prime, logits.detach().numpy(), h_in, h_out, done))
-                    s = s_prime
-
-                    score += r
-                    if done:
-                        break
-
-                logs = model.train_net()
-                global_step += 1
-                if global_step % 20 == 0:
-                    for tag, value in logs.items():
-                        writer.add_scalar(f'{tag}_{opponent_name}', value, global_step)
+            score, global_step = train_one_ep_against(opponent_name, env, model, writer, global_step)
 
             # log to tensorboard
             writer.add_scalar(f'score_{opponent_name}', score, n_epi)
@@ -131,5 +131,60 @@ def train():
         torch.save(model.state_dict(), log_dir / f'model_{opponent_name}.pth')
 
 
+def train_against_all(n_runs):
+    opponents = {
+        'white_belt/all_paper': all_paper.constant_play_agent_1,
+        'white_belt/all_rock': all_rock.constant_play_agent_0,
+        'white_belt/all_scissors': all_scissors.constant_play_agent_2,
+        'white_belt/mirror': mirror.mirror_opponent_agent,
+        'white_belt/reactionary': reactionary.reactionary,
+    }
+
+    # create tensorboard writer and save current file
+    log_dir = project_dir / f'runs/levi/all_{datetime.now().strftime(f"%Y%m%d_%H%M%S")}'
+    writer = SummaryWriter(log_dir)
+    shutil.copy2(project_dir / 'dojo/my_little_dojo/levi.py', log_dir)
+    shutil.copy2(__file__, log_dir)
+
+    print(f'Training against agents {opponents.keys()}')
+    model = PPO()
+    global_step = 0
+
+    for n_epi in tqdm(range(n_runs)):
+        # pick a random opponent
+        opponent_id = np.random.randint(len(opponents))
+        opponent_name = list(opponents.keys())[opponent_id]
+        opponent = opponents[opponent_name]
+
+        # log which opponent was chosen
+        for name in opponents.keys():
+            if name == opponent_name:
+                writer.add_scalar(f'chose_{opponent_name}', 1, n_epi)
+            else:
+                writer.add_scalar(f'chose_{opponent_name}', 0, n_epi)
+
+        env = RockPaperScissorsEnv(opponent)
+        score, global_step = train_one_ep_against('all', env, model, writer, global_step)
+
+        # log to tensorboard
+        writer.add_scalar(f'score_all', score, n_epi)
+
+        if n_epi % 300 == 0 and n_epi > 0:
+            # save model weights
+            os.makedirs(os.path.dirname(log_dir / f'model_{n_epi}.pth'), exist_ok=True)
+            torch.save(model.state_dict(), log_dir / f'model_{n_epi}.pth')
+
+    # save model weights
+    os.makedirs(os.path.dirname(log_dir / f'model_all.pth'), exist_ok=True)
+    torch.save(model.state_dict(), log_dir / f'model_all.pth')
+
+
 if __name__ == '__main__':
-    train()
+    project_dir = Path(os.path.realpath(__file__)).parent
+    sys.path.append(str(project_dir))
+    from dojo.white_belt import all_paper, all_scissors, all_rock, reactionary, mirror
+    from dojo.blue_belt import decision_tree, transition_matrix, not_so_markov
+    from dojo.black_belt import testing_please_ignore, multi_armed_bandit_v15
+
+    # train(n_runs=3000)
+    train_against_all(n_runs=10000)

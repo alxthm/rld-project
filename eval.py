@@ -9,6 +9,7 @@ import pandas as pd
 import seaborn as sns
 from omegaconf import OmegaConf
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 project_dir = Path(__file__).resolve().parents[0]
 
@@ -17,7 +18,7 @@ def sanitize_action(action):
     return -1 if action is None else int(action)
 
 
-def evaluate(agents, configuration={}, steps=[], num_episodes=1):
+def evaluate(agents, num_episodes, configuration={}, steps=[]):
     env = kaggle_environments.make('rps', configuration, steps, debug=False)
     final_rewards = []
     rewards = []
@@ -36,7 +37,7 @@ def evaluate(agents, configuration={}, steps=[], num_episodes=1):
 def get_result(match_setting: Tuple[str, str, int]):
     start = datetime.now()
     agent, baseline, num_episodes = match_setting
-    outcomes, r, a_left, a_right = evaluate([agent, baseline], num_episodes=num_episodes)
+    outcomes, r, a_left, a_right = evaluate([agent, baseline], num_episodes)
     won, lost, tie, cum_score = 0, 0, 0, 0.
     df_stats = []
     for i, outcome in enumerate(outcomes):
@@ -48,8 +49,8 @@ def get_result(match_setting: Tuple[str, str, int]):
         else:
             tie += 1
         cum_score += score
-        # baseline_name = baseline.split('/')[-1].split('.py')[0]
-        baseline_name = re.search(r"(?<=\\).+(?=\.)", baseline).group(0)
+        baseline_name = baseline.split('/')[-1].split('.py')[0]
+        # baseline_name = re.search(r"(?<=\\).+(?=\.)", baseline).group(0)
         df_stats.append(pd.DataFrame({
             'ep': i, 't': [t * 10 for t in range(len(r[i]))], 'rewards': r[i], 'actions_left': a_left[i],
             'actions_right': a_right[i], 'opponent': baseline_name
@@ -58,7 +59,7 @@ def get_result(match_setting: Tuple[str, str, int]):
     return baseline, won, lost, tie, elapsed, cum_score, df_stats
 
 
-def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=10):
+def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes: int):
     """
 
     Args:
@@ -70,8 +71,8 @@ def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=
     Returns:
 
     """
-    baselines_names = [re.search(r"(?<=\\).+(?=\.)", baseline).group(0) for baseline in baselines]
-    # baselines_names = [baseline.split('/')[-1].split('.py')[0] for baseline in baselines]
+    # baselines_names = [re.search(r"(?<=\\).+(?=\.)", baseline).group(0) for baseline in baselines] # on Windows
+    baselines_names = [baseline.split('/')[-1].split('.py')[0] for baseline in baselines]  # on Unix systems
     df = pd.DataFrame(
         columns=['wins', 'ties', 'loses', 'total time', 'avg. score'],
         index=baselines_names
@@ -81,13 +82,16 @@ def eval_agent_against_baselines(agent: str, baselines: List[str], num_episodes=
     match_settings = [[agent, baseline, num_episodes] for baseline in baselines]
 
     results = []
+    # for m in tqdm(range(len(match_settings))):
+    #     content = get_result(match_settings[m])
     for content in tqdm(pool.imap_unordered(get_result, match_settings), total=len(match_settings)):
         results.append(content)
     pool.close()
 
     df_all = []
     for baseline_agent, won, lost, tie, elapsed, avg_score, df_stats in results:
-        baseline_name = re.search(r"(?<=\\).+(?=\.)", baseline_agent).group(0)
+        # baseline_name = re.search(r"(?<=\\).+(?=\.)", baseline_agent).group(0)
+        baseline_name = baseline_agent.split('/')[-1].split('.py')[0]
         df.loc[baseline_name, 'wins'] = won
         df.loc[baseline_name, 'ties'] = tie
         df.loc[baseline_name, 'loses'] = lost
@@ -130,34 +134,78 @@ def plot_figures(df_results, df_all, log_dir, agent_name=None):
     fig2.savefig(log_dir / 'full_history.png')
 
 
+def plot_levi_figures(df_results, log_dir):
+    df_results = df_results.reset_index().rename(columns={'index': 'opponent', 'avg. score': 'avg_score'})
+    df_results['wins_minus_loses'] = (df_results.wins - df_results.loses).astype(int)
+    df_results.avg_score = df_results.avg_score.astype(float)
+
+    plt.figure()
+    ax1 = sns.heatmap(df_results.pivot('trained_against', 'opponent', 'avg_score'))
+    ax1.set_title('Average score')
+    plt.tight_layout()
+    ax1.figure.savefig(log_dir / 'heatmap_avg_score.png')
+
+    plt.figure()
+    ax2 = sns.heatmap(df_results.pivot('trained_against', 'opponent', 'wins_minus_loses'))
+    ax2.set_title('Wins minus loses')
+    plt.tight_layout()
+    ax2.figure.savefig(log_dir / 'heatmap_wins_minus_loses.png')
+
+
+def evaluate_multi_levi():
+    opponent_dojo = 'white'
+    time_stamp = datetime.now().strftime(f'%Y%m%d-%H%M%S')
+    log_dir = project_dir / f'runs/csv_results/multi-levi-{opponent_dojo}-{time_stamp}'
+    save_conf(log_dir, 'levi')
+
+    opponents = [os.path.join(f'dojo/{opponent_dojo}_belt', agent) for agent in
+                 os.listdir(f'dojo/{opponent_dojo}_belt')]
+    opponents = [o for o in opponents if '__pycache__' not in o]
+
+    # names of the agent it was trained on
+    levi_agents = [agent.split('.')[0] for agent in os.listdir(f'dojo/my_little_dojo/levi')]
+
+    df_list = []
+    for levi_agent in levi_agents:
+        my_agent = f'dojo/my_little_dojo/levi/{levi_agent}.py'
+
+        print(f'Evaluating levi/{levi_agent}')
+        df, _ = eval_agent_against_baselines(my_agent, opponents, num_episodes=10)
+        df['trained_against'] = levi_agent
+        df_list.append(df)
+        print(df)
+
+    # save eval results
+    df = pd.concat(df_list)
+    df.reset_index().to_csv(log_dir / 'results.csv', index=False)
+    plot_levi_figures(df, log_dir)
+
+
 def main():
-    agent_name = 'giorno'
-    opponent_dojo = 'blue'
+    agent_name = 'levi/all'
+    opponent_dojo = 'white'
 
     # save conf and code
     time_stamp = datetime.now().strftime(f'%Y%m%d-%H%M%S')
     log_dir = project_dir / f'runs/csv_results/{agent_name}-{opponent_dojo}-{time_stamp}'
-    save_conf(log_dir, agent_name)
+    os.makedirs(log_dir, exist_ok=True)
+    if not ('levi' in agent_name):  # no conf file for levi
+        save_conf(log_dir, agent_name)
 
-    # my_agent = 'dojo/black_belt/greenberg.py'
     my_agent = f'dojo/my_little_dojo/{agent_name}.py'
     opponents = [os.path.join(f'dojo/{opponent_dojo}_belt', agent) for agent in
                  os.listdir(f'dojo/{opponent_dojo}_belt')]
+    opponents = [o for o in opponents if '__pycache__' not in o]
 
-    # remnant file in opponents to pop
-    try:
-        opponents.remove('dojo/white_belt\\__pycache__')
-    except ValueError:
-        print("no '__pycache__' found in opponents")
-
-    df, df_all = eval_agent_against_baselines(my_agent, opponents, num_episodes=1)
+    df, df_all = eval_agent_against_baselines(my_agent, opponents, num_episodes=10)
     print(df)
 
     # save eval results
     df.reset_index().to_csv(log_dir / 'results.csv', index=False)
     df_all.to_csv(log_dir / 'full_history.csv', index=False)
-    plot_figures(df, df_all, log_dir, agent_name=agent_name)
+    plot_figures(df, df_all, log_dir, agent_name)
 
 
 if __name__ == '__main__':
     main()
+    # evaluate_multi_levi()

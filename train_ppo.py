@@ -13,7 +13,7 @@ from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from dojo.my_little_dojo.levi import PPO
+from ppo_model import PPO
 
 T_horizon = 20
 
@@ -95,11 +95,12 @@ def train(n_runs):
         # 'white_belt/all_scissors': all_scissors.constant_play_agent_2,
         # 'white_belt/mirror': mirror.mirror_opponent_agent,
         # 'white_belt/reactionary': reactionary.reactionary,
+        # 'white_belt/de_bruijn': de_bruijn.kaggle_agent,
         # 'blue_belt/transition_matrix': transition_matrix.transition_agent,
         # 'blue_belt/not_so_markov': not_so_markov.markov_agent,
         # 'blue_belt/decision_tree': decision_tree.agent,
         # 'black_belt/multi_armed_bandit_v15': multi_armed_bandit_v15.multi_armed_bandit_agent,
-        # 'black_belt/testing_please_ignore': testing_please_ignore.run,
+        'black_belt/testing_please_ignore': testing_please_ignore.run,
     }
 
     # create tensorboard writer and save current file
@@ -121,7 +122,7 @@ def train(n_runs):
             if score > 995:
                 break  # consider the task solved
 
-            if n_epi % 100 == 0 and n_epi > 0:
+            if n_epi % 300 == 0 and n_epi > 0:
                 # save model weights
                 os.makedirs(os.path.dirname(log_dir / f'model_{opponent_name}_{n_epi}.pth'), exist_ok=True)
                 torch.save(model.state_dict(), log_dir / f'model_{opponent_name}_{n_epi}.pth')
@@ -138,6 +139,7 @@ def train_against_all(n_runs):
         'white_belt/all_scissors': all_scissors.constant_play_agent_2,
         'white_belt/mirror': mirror.mirror_opponent_agent,
         'white_belt/reactionary': reactionary.reactionary,
+        'white_belt/de_bruijn': de_bruijn.kaggle_agent,
     }
 
     # create tensorboard writer and save current file
@@ -168,6 +170,7 @@ def train_against_all(n_runs):
 
         # log to tensorboard
         writer.add_scalar(f'score_all', score, n_epi)
+        writer.add_scalar(f'score_all_{opponent_name}', score, n_epi)
 
         if n_epi % 300 == 0 and n_epi > 0:
             # save model weights
@@ -182,9 +185,9 @@ def train_against_all(n_runs):
 if __name__ == '__main__':
     project_dir = Path(os.path.realpath(__file__)).parent
     sys.path.append(str(project_dir))
-    from dojo.white_belt import all_paper, all_scissors, all_rock, reactionary, mirror
+    from dojo.white_belt import all_paper, all_scissors, all_rock, reactionary, mirror, de_bruijn
     from dojo.blue_belt import decision_tree, transition_matrix, not_so_markov
     from dojo.black_belt import testing_please_ignore, multi_armed_bandit_v15
 
-    # train(n_runs=3000)
-    train_against_all(n_runs=10000)
+    train(n_runs=10000)
+    # train_against_all(n_runs=30000)

@@ -5,8 +5,8 @@ from itertools import combinations_with_replacement
 
 actions = list(combinations_with_replacement([2,1,0,2,1,0],3)) * 18
 # random.shuffle(actions)
-print('len(actions)',len(actions))
-print(actions)
+# print('len(actions)',len(actions))
+# print(actions)
 actions = pydash.flatten(actions)
 
 # observation   =  {'step': 1, 'lastOpponentAction': 1}

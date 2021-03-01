@@ -1,8 +1,8 @@
 alpha: 0.7
-discount: 0.3
-epsilon: 0.82
-epsilon_decay: 0.99999999
-history_length: 2
+discount: 0.9
+epsilon: 0.5
+epsilon_decay: 0.9995
+history_length: 3
 agent_strategy: 'Q-learning'
 exploration: 'epsilon-greedy'
 #exploration: 'boltzmann'

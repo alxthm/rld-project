@@ -4,8 +4,8 @@ from typing import Callable
 from kaggle_environments import make
 from kaggle_environments.envs.rps.utils import get_score
 
-from dojo.white_belt import statistical, counter_reactionary
-from dojo.my_little_dojo import jotaro, giorno
+from dojo.white_belt import statistical, counter_reactionary, all_paper
+from dojo.my_little_dojo import saitama, jotaro, giorno
 
 
 def test_env(agent_left: Callable, agent_right: Callable, steps: int, verbose: bool):

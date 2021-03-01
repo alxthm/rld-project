@@ -3,7 +3,7 @@ import torch
 from dojo.my_little_dojo.levi import act_levi
 from ppo_model import PPO
 
-model_path = 'runs/levi/all_20210228_010702/model_17700.pth'
+model_path = 'runs/levi/20210228_011059/model_white_belt/de_bruijn_4500.pth'
 model = PPO()
 model.eval()
 model.load_state_dict(torch.load(model_path))

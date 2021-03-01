@@ -156,7 +156,7 @@ def evaluate_multi_levi():
     opponent_dojo = 'white'
     time_stamp = datetime.now().strftime(f'%Y%m%d-%H%M%S')
     log_dir = project_dir / f'runs/csv_results/multi-levi-{opponent_dojo}-{time_stamp}'
-    save_conf(log_dir, 'levi')
+    os.makedirs(log_dir, exist_ok=True)
 
     opponents = [os.path.join(f'dojo/{opponent_dojo}_belt', agent) for agent in
                  os.listdir(f'dojo/{opponent_dojo}_belt')]

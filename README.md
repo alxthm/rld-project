@@ -1,28 +1,20 @@
-# rld-project
+# Custom RL Dojo for RPS
 
-## Recommendations
+## How to run
 
-- :b:eware : to declare an agent in a python file, one must make sure it's the last function in the file that is the `act` method.
+I you want to test an algorithm in debug mode, run it via the `test.py` file. 
 
-list of all the algorithms https://medium.com/datadriveninvestor/which-reinforcement-learning-rl-algorithm-to-use-where-when-and-in-what-scenario-e3e7617fb0b1
+If you want to evaluate it against the other baselines, run the `eval.py` specifying the baseline against which you want to test it.
 
-nice article to read https://arxiv.org/pdf/1512.07679.pdf
+## Algorithms
 
-## Objectives
+- Simple Multi-armed-bandits: `jotaro.py`
 
-- Find fancy names :dancer:
+- Bandit of bandits (*Meta-bandits/Banditception*): `giorno.py`
 
-- Banditception​ :heavy_check_mark:
+- Q-learning: `saitama.py`
 
-- Base Bandits : Contextual Bandits (Scélérat) :heavy_check_mark:
-
-  - Lin-UCB :heavy_check_mark:
-  
-- Tabular-Q :heavy_check_mark:
-
-- SARSA :x:
-
-- Dyna-Q :x:
+- PPO-LSTM: ``levi.py`
 
   
 

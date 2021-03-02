@@ -19,10 +19,10 @@ This is an attempt to apply RL algorithms at the [Rock, Paper, Scissors (RPS) Ka
 We implemented and evaluated our algorithms against a number of baselines from [1] (white, blue and black belt baselines).
 
 Our agents are located in the `dojo/my_little_dojo` folder:
-- Simple Multi-armed-bandits: `jotaro.py`
-- Bandit of bandits (*Meta-bandits/Banditception*): `giorno.py`
-- Tabular Q-learning: `saitama.py`
-- PPO-LSTM (considering a POMDP setting): `levi.py`
+- **Simple Multi-armed-bandits**: `jotaro.py`
+- **Bandit of bandits** (*Meta-bandits/Banditception*): `giorno.py`
+- **Tabular Q-learning**: `saitama.py`
+- **PPO-LSTM** (considering a POMDP setting): `levi.py`
 
 _Note:_ Unlike other agents, the PPO-LSTM agent does not learn a strategy online from scratch, but is pre-trained against a number of white belt baselines offline. Weights of pre-trained agents are located in the `runs` folder.
 

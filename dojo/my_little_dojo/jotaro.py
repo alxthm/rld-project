@@ -59,7 +59,7 @@ def actions_bandit(observation, configuration):
             proba_i = theta.T @ x_t + alpha * np.sqrt(x_t.T @ A_inv @ x_t)
             probas[i] = proba_i[0][0]
 
-        print(probas)
+        # print(probas)
         choice = int(np.argmax(probas))
         context_history.append(x_t)
     else:
